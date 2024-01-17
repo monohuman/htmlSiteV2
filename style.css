@@ -1,3 +1,30 @@
+/* i like this font */
+@font-face {
+    font-family: 'HelveticaRegular';
+    src:
+        local("Regular"),
+        url("Regular.otf") format("opentype");
+}
+
+/* setting body styles */
+body {
+    background-color: black;
+    font-family: 'HelveticaRegular';
+}
+
+/* canvas */
 canvas {
-    border: 1px solid black;
+    border: 3px solid black;
+    border-radius: 10px;
+    background-color: white;
+    padding: 0;
+    margin: auto;
+    display: block;
+    width: 800px;
+    height: 600px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
 }

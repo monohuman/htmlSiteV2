@@ -1,16 +1,33 @@
+// setup canvas and images
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+let playerImg, redBulletImg;
 
-// Load images
-const playerImg = new Image();
-playerImg.src = 'user.png'; // Path to player image
-const redBulletImg = new Image();
-redBulletImg.src = 'c1.png'; // Path to red bullet image
-const purpleBulletImg = new Image();
-purpleBulletImg.src = 'c2.png'; // Path to purple bullet image
-const orangeBulletImg = new Image();
-orangeBulletImg.src = 'c4.png'; // Path to orange bullet image
+// load images function
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to load image at ' + src));
+        img.src = src;
+    });
+}
 
+//when images are loaded start the game loop
+Promise.all([
+    loadImage('user.png'),
+    loadImage('blue_bullet.png'),
+    loadImage('c1.png'),
+    loadImage('c4.png'),
+    loadImage('c2.png'),
+]).then(images => {
+    [playerImg, redBulletImg, redEnemyImg, yellowEnemyImg, purpleEnemyImg] = images;
+    gameLoop();
+}).catch(error => {
+    console.error('Error loading images:', error);
+});
+
+// player details
 const player = {
     x: canvas.width / 2,
     y: canvas.height - 30,
@@ -20,31 +37,41 @@ const player = {
     lives: 3
 };
 
+// setting a bunch of variables
 let bullets = [];
 let enemyBullets = [];
 let enemies = [];
 let currentWave = 1;
 const totalWaves = 5;
-let enemySpeed = 1; // Initial enemy speed
+let enemySpeed = 1;
 const bulletSpeed = 10;
 const enemyBulletSpeed = 2;
 let lastEnemyShotTime = 0;
-const enemyShotInterval = 2000; // 2 seconds
+const enemyShotInterval = 2000;
 
+// make sure the game doesnt end as it starts
 let gameOver = false;
 let gameWon = false;
 
+// for movement
 let keys = {
     ArrowUp: false,
     ArrowDown: false,
     ArrowLeft: false,
-    ArrowRight: false
+    ArrowRight: false,
+    w: false,
+    a: false,
+    s: false,
+    d: false,
 };
 
+// event listeners to check when a key is pressed, a key isnt pressed, or mouse is clicked
 document.addEventListener('keydown', handleKeyDown);
 document.addEventListener('keyup', handleKeyUp);
 canvas.addEventListener('click', handleMouseClick);
 
+// this was very annoying to code
+// spawns enemies
 function spawnEnemies() {
     const numEnemies = 5 * currentWave; 
     enemies = [];
@@ -72,61 +99,70 @@ function spawnEnemies() {
         enemies.push(enemy);
     }
 }
-
 spawnEnemies();
 
+// handles keypresses
 function handleKeyDown(e) {
     if (keys[e.key] !== undefined) {
         keys[e.key] = true;
     }
 }
 
+// handles not keypresses
 function handleKeyUp(e) {
     if (keys[e.key] !== undefined) {
         keys[e.key] = false;
     }
 }
 
+// what do you think this does
+// i didnt enjoy learning velocity in javascript
 function handleMouseClick(e) {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const dx = mouseX - player.x;
-    const dy = mouseY - player.y;
+    const dx = mouseX - (player.x + player.width / 2);
+    const dy = mouseY - (player.y + player.height / 2);
     const magnitude = Math.sqrt(dx * dx + dy * dy);
     const bulletVx = (dx / magnitude) * bulletSpeed;
     const bulletVy = (dy / magnitude) * bulletSpeed;
 
-    bullets.push({ x
-
-: player.x, y: player.y, vx: bulletVx, vy: bulletVy });
+    bullets.push({
+        x: player.x + player.width / 2,
+        y: player.y + player.height / 2,
+        vx: bulletVx,
+        vy: bulletVy,
+        type: 'red'
+    });
 }
 
+//handle keypresses
 function handleInput() {
-    if (keys.ArrowUp) player.y -= player.speed;
-    if (keys.ArrowDown) player.y += player.speed;
-    if (keys.ArrowLeft) player.x -= player.speed;
-    if (keys.ArrowRight) player.x += player.speed;
+    if (keys.ArrowUp || keys.w) player.y -= player.speed;
+    if (keys.ArrowDown || keys.s) player.y += player.speed;
+    if (keys.ArrowLeft || keys.a) player.x -= player.speed;
+    if (keys.ArrowRight || keys.d) player.x += player.speed;
 }
 
+//check if players touch the enemy
 function checkPlayerEnemyCollision() {
     enemies.forEach((enemy, index) => {
         if (player.x < enemy.x + enemy.width &&
             player.x + player.width > enemy.x &&
             player.y < enemy.y + enemy.height &&
             player.y + player.height > enemy.y) {
-            // Deduct more lives based on enemy type
+            // deduct more lives due to color (now images but it used to be colors)
             player.lives -= enemy.type === "red" ? 1 : (enemy.type === "purple" ? 2 : 3);
-            enemies.splice(index, 1); // Remove the enemy that collided with the player
+            enemies.splice(index, 1); //remove enemies that touch the player
             if (player.lives <= 0) {
                 gameOver = true;
-                alert("Game Over!");
             }
         }
     });
 }
 
+//check if the player is hit by a bullet
 function checkPlayerHit() {
     enemyBullets = enemyBullets.filter((bullet, index) => {
         if (bullet.x > player.x && bullet.x < player.x + player.width &&
@@ -143,10 +179,13 @@ function checkPlayerHit() {
     }
 }
 
+// make the game actually work
+// i didnt like writing this function 2/10
 function updateGame() {
     if (gameOver) {
         return;
     }
+
 
     // Move bullets
     bullets.forEach(bullet => {
@@ -156,54 +195,53 @@ function updateGame() {
 
     const now = Date.now();
     enemies.forEach(enemy => {
-        // Move towards player
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const magnitude = Math.sqrt(dx * dx + dy * dy);
         enemy.x += (dx / magnitude) * enemySpeed;
         enemy.y += (dy / magnitude) * enemySpeed;
     
-        // Enemy shooting
+        // enemy shooting
+        // made me very angry
         if (now - lastEnemyShotTime > enemyShotInterval) {
             lastEnemyShotTime = now;
-            const dx = player.x - enemy.x;
-            const dy = player.y - enemy.y;
-            const magnitude = Math.sqrt(dx * dx + dy * dy);
-            if (magnitude !== 0) { // Ensure we don't divide by zero
-                const normalizedDx = dx / magnitude;
-                const normalizedDy = dy / magnitude;
+            const bulletDx = player.x - (enemy.x + enemy.width / 2);
+            const bulletDy = player.y - (enemy.y + enemy.height / 2);
+            const bulletMagnitude = Math.sqrt(bulletDx * bulletDx + bulletDy * bulletDy);
+            if (bulletMagnitude !== 0) {
+                const bulletVx = (bulletDx / bulletMagnitude) * enemyBulletSpeed;
+                const bulletVy = (bulletDy / bulletMagnitude) * enemyBulletSpeed;
                 enemyBullets.push({
-                    x: enemy.x + enemy.width / 2, // Shoot from the center of the enemy
+                    x: enemy.x + enemy.width / 2,
                     y: enemy.y + enemy.height / 2,
-                    vx: normalizedDx * enemyBulletSpeed,
-                    vy: normalizedDy * enemyBulletSpeed
+                    vx: bulletVx,
+                    vy: bulletVy
                 });
             }
         }
     });
-    
 
-    // Bullet collision detection
+    // bullet collision detection
     bullets = bullets.filter(bullet => {
         let hit = false;
         enemies = enemies.filter(enemy => {
             if (bullet.x > enemy.x && bullet.x < enemy.x + enemy.width && bullet.y > enemy.y && bullet.y < enemy.y + enemy.height) {
                 hit = true;
-                return false; // Remove enemy if hit
+                return false; // remove enemy if hit (hitboxes arent perfected)
             }
             return true;
         });
         return !hit;
     });
 
-    // Check if wave is complete
+    // check if wave is complete
     if (enemies.length === 0) {
         if (currentWave === totalWaves) {
             gameWon = true;
             return;
         } else {
             currentWave += 1;
-            enemySpeed += 0.5; // Increase enemy speed each wave
+            enemySpeed += 0.5; // increase enemy speed each wave
             spawnEnemies();
         }
     }
@@ -212,6 +250,7 @@ function updateGame() {
     checkPlayerEnemyCollision();
 }
 
+//hearts
 const heartImage = new Image();
 heartImage.src="heart.png";
 heartImage.onload = function() {
@@ -224,75 +263,74 @@ function drawLives() {
     }
 }
 
+//drawing player, enemies, text
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (gameOver) {
-        ctx.fillStyle = 'red';
-        ctx.font = '48px Arial';
+        ctx.fillStyle = '#e86060';
+        ctx.font = '48px HelveticaRegular';
         ctx.fillText("Game Over!", canvas.width / 2 - 120, canvas.height / 2);
+        canvas.style.backgroundColor = "black";
+        ctx.shadowColor = "#e86060";
+        ctx.shadowBlur = 15;
         return;
     }
 
     if (gameWon) {
-        ctx.fillStyle = 'green';
-        ctx.font = '48px Arial';
+        ctx.fillStyle = '#73d164';
+        ctx.font = '48px HelveticaRegular';
         ctx.fillText("You Win!", canvas.width / 2 - 100, canvas.height / 2);
+        canvas.style.backgroundColor = "black";
+        ctx.shadowColor = "#73d164";
+        ctx.shadowBlur = 15;
         return;
     }
 
+    // draw player
     if (player.lives > 0) {
         ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
     }
 
+    // draw bullets
     bullets.forEach(bullet => {
         let bulletImg;
         switch (bullet.type) {
             case 'red': bulletImg = redBulletImg; break;
-            case 'purple': bulletImg = purpleBulletImg; break;
-            case 'orange': bulletImg = orangeBulletImg; break;
-            default: bulletImg = redBulletImg; // Default to red if no type is set
+            default: bulletImg = redBulletImg;
         }
-        ctx.drawImage(bulletImg, bullet.x, bullet.y, 10, 10); // Adjust the size as needed
+
+        ctx.drawImage(bulletImg, bullet.x, bullet.y, 10, 10); // Adjust size as needed
     });
 
-    // Draw player
-    ctx.fillStyle = 'blue';
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-
-    // Draw bullets
-    ctx.fillStyle = 'green';
-    bullets.forEach(bullet => {
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-    });
-
-    // Draw enemy bullets
+    // draw enemy bullets
     ctx.fillStyle = 'black';
     enemyBullets.forEach(bullet => {
         ctx.beginPath();
         ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
         ctx.fill();
+
         bullet.x += bullet.vx;
         bullet.y += bullet.vy;
     });
 
-    // Draw enemies
+    // draw enemies
     enemies.forEach(enemy => {
-        ctx.fillStyle = enemy.type;
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        let enemyImg;
+        switch (enemy.type) {
+            case 'red': enemyImg = redEnemyImg; break;
+            case 'purple': enemyImg = purpleEnemyImg; break;
+            case 'yellow': enemyImg = yellowEnemyImg; break;
+            default: enemyImg = redEnemyImg; // Default image if no type
+        }
+        ctx.drawImage(enemyImg, enemy.x, enemy.y, enemy.width, enemy.height);
     });
 
-    if (player.lives > 0) {
-        ctx.fillStyle = 'blue';
-        ctx.fillRect(player.x, player.y, player.width, player.height);
-    }
-
-    // Draw player lives
+    // draw player lives
     drawLives();
 }
 
+// gameloop which runs all necessary functions
 function gameLoop() {
     handleInput();
     updateGame();
@@ -301,14 +339,3 @@ function gameLoop() {
         requestAnimationFrame(gameLoop);
     }
 }
-
-Promise.all([
-    playerImg.decode(),
-    redBulletImg.decode(),
-    purpleBulletImg.decode(),
-    orangeBulletImg.decode()
-]).then(() => {
-    gameLoop(); // Start the game loop after all images are loaded
-}).catch(error => {
-    console.error('Error loading images', error);
-});
