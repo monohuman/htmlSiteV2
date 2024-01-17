@@ -269,7 +269,7 @@ function draw() {
 
     if (gameOver) {
         ctx.fillStyle = '#e86060';
-        ctx.font = '48px HelveticaRegular';
+        ctx.font = '48px Helvetica';
         ctx.fillText("Game Over!", canvas.width / 2 - 120, canvas.height / 2);
         canvas.style.backgroundColor = "black";
         ctx.shadowColor = "#e86060";
@@ -279,7 +279,7 @@ function draw() {
 
     if (gameWon) {
         ctx.fillStyle = '#73d164';
-        ctx.font = '48px HelveticaRegular';
+        ctx.font = '48px Helvetica';
         ctx.fillText("You Win!", canvas.width / 2 - 100, canvas.height / 2);
         canvas.style.backgroundColor = "black";
         ctx.shadowColor = "#73d164";
